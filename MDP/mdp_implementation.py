@@ -260,38 +260,56 @@ def get_all_policies(mdp, U, epsilon=10 ** (-3)):  # You can add more input para
     return num_policies
 
 
-
 def get_policy_for_different_rewards(mdp, epsilon=1e-3):
-    """
-    For each reward value r in [-5.00, 5.00] with step 0.01, set it as the reward
-    for all non-terminal, non-wall states and compute the optimal policy.
-    Whenever the policy changes from the previous one, display it and the reward range.
-    """
-    prev_policy = None
     r_values = np.round(np.arange(-5.00, 5.01, 0.01), 2)
-    change_points = [-5.00]  # Start with the first change point
-    mdp_wrapper = MDPWrapper(mdp)
+    prev_policy = None
+    change_points = []
+    change_policies = []
+
+    seen_policies = set()  # To track unique policies
+    unique_policies = []   # To return all valid ones
+
     for r in r_values:
-        # Set reward r to all non-terminal, non-wall states
-        for state in mdp_wrapper.get_all_states():
-            if mdp_wrapper.is_wall(state) or mdp_wrapper.is_terminal(state):
-                continue
-            state.reward = r
+        # Set the reward directly in the mdp board
+        for i in range(mdp.num_row):
+            for j in range(mdp.num_col):
+                if mdp.board[i][j] != 'WALL' and (i, j) not in mdp.terminal_states:
+                    mdp.board[i][j] = r
 
+        # Create wrapper and initial policy
+        mdp_wrapper = MDPWrapper(mdp)
+        init_policy = [['UP' if not mdp_wrapper.is_wall(State(i, j, 0)) and (i, j) not in mdp.terminal_states else None
+                        for j in range(mdp.num_col)] for i in range(mdp.num_row)]
 
-        U_init = [[0.0 for _ in range(mdp.num_col)] for _ in range(mdp.num_row)]
-        mdp_wrapper.set_utility(U_init)
-        # Compute the optimal policy for the current reward
-        init_policy = [['UP', 'UP', 'UP', None],
-              ['UP', None, 'UP', None],
-              ['UP', 'UP', 'UP', 'UP']]
         policy = policy_iteration(mdp, policy_init=init_policy)
-        # Compare with previous policy
-        if prev_policy is None or policy != prev_policy:
-            change_points.append(r)
-            print(f"{change_points[-2]}<R(s)<{change_points[-1]}")
-            mdp.print_policy(policy)
-            prev_policy = policy
 
-    return change_points
+        # Serialize policy for uniqueness
+        policy_tuple = tuple(tuple(row) for row in policy)
+        if policy_tuple not in seen_policies:
+            seen_policies.add(policy_tuple)
+            unique_policies.append(policy)
+
+            if prev_policy is not None:
+                change_points.append(r)
+                change_policies.append(policy)
+
+        prev_policy = policy
+
+    # Print all change points and policies
+    for idx in range(len(change_policies)):
+        if idx == 0:
+            print(f"-5.00 ≤ R(s) ≤ {change_points[idx]}")
+        else:
+            print(f"{change_points[idx - 1]} < R(s) ≤ {change_points[idx]}")
+        print("Policy:")
+        mdp.print_policy(change_policies[idx])
+        print()
+
+    if change_points:
+        print(f"{change_points[-1]} < R(s) ≤ 5.00")
+        print("Policy:")
+        mdp.print_policy(change_policies[-1])
+        print()
+
+    return unique_policies
 
