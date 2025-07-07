@@ -10,7 +10,9 @@ class State:
         self.utility = utility
 
     def get_reward(self):
-        return self.reward
+        if self.reward == 'WALL':
+            return 0
+        return float(self.reward)
 
     def set_utility(self, utility):
         self.utility = utility
@@ -59,16 +61,20 @@ class MDPWrapper:
     def get_expected_utility(self, state, action):
         """
         Given a state and an action, return the expected utility of the next states.
-        Assumes transition_function[(i, j)][action] = list of ((ni, nj), probability)
+        This uses self.mdp.step to calculate valid resulting states.
         """
-        s_coords = state.get_quards()
-        transitions = self.transition_function[s_coords][action]
-
         expected_util = 0.0
-        for (ni, nj), prob in transitions:
-            expected_util += prob * self.board[ni][nj].utility
-        return expected_util
+        s_coords = state.get_quards()
+        transition_probs = self.transition_function[action]  # tuple of 4 probabilities
 
+        directions = self.actions.keys()
+        for dir_name, prob in zip(directions, transition_probs):
+            resulting_state_coords = self.mdp.step(s_coords, dir_name)
+            ni, nj = resulting_state_coords
+            next_state_utility = self.board[ni][nj].utility
+            expected_util += prob * next_state_utility
+
+        return expected_util
 
 
 def value_iteration(mdp, U_init, epsilon=10 ** (-3)):
@@ -98,8 +104,9 @@ def value_iteration(mdp, U_init, epsilon=10 ** (-3)):
 
             new_value = state.get_reward() + mdp.gamma * max_util
             new_U[state.i][state.j] = new_value
-            delta = max(delta, abs(new_value - U[state.i][state.j]))
+            delta = max(delta, abs(new_value - state.utility))
         mdp_wrapper.set_utility(new_U)
+
     return mdp_wrapper.get_utility()
 
 
@@ -172,6 +179,7 @@ def policy_iteration(mdp, policy_init):
             if curr_policy[state.i][state.j] != best_action:
                 changed = True
                 new_policy[state.i][state.j] = best_action
+        curr_policy = new_policy
 
     return curr_policy
 
@@ -188,9 +196,46 @@ def get_all_policies(mdp, U, epsilon=10 ** (-3)):  # You can add more input para
     # return: the number of different policies
     #
 
-    # ====== YOUR CODE: ======
-    raise NotImplementedError
-    # ========================
+    def convert_action(action):
+        if action == 'UP':
+            return "U"
+        if action == 'DOWN':
+            return "D"
+        if action == 'LEFT':
+            return "L"
+        if action == 'RIGHT':
+            return "R"
+
+    mdp_wrapper = MDPWrapper(mdp)
+    mdp_wrapper.set_utility(U)
+
+    policies_per_state = {state: [] for state in mdp_wrapper.get_all_states() if not mdp_wrapper.is_wall(state) and not mdp_wrapper.is_terminal(state)}
+    for curr_state in mdp_wrapper.get_all_states():
+        if mdp_wrapper.is_wall(curr_state) or mdp_wrapper.is_terminal(curr_state):
+            continue
+        for action in mdp.actions:
+            expected_util = mdp_wrapper.get_expected_utility(curr_state, action)
+            new_value = curr_state.get_reward() + mdp_wrapper.gamma * expected_util
+            if abs(new_value - curr_state.utility) < epsilon:
+                policies_per_state[curr_state].append(action)
+
+    num_policies = 1
+    for state, actions in policies_per_state.items():
+        num_policies *= len(actions) if actions else 1
+
+
+    policy = [["" for _ in range(mdp.num_col)] for _ in range(mdp.num_row)]
+    for state, actions in policies_per_state.items():
+        if mdp_wrapper.is_wall(state):
+            policy[state.i][state.j] = "WALL"
+            continue
+        if mdp_wrapper.is_terminal(state):
+            policy[state.i][state.j] = str(state.get_reward())
+            continue
+        policy[state.i][state.j] = ' '.join(convert_action(a) for a in actions)
+    mdp.print_policy(policy)
+    return num_policies
+
 
 
 def get_policy_for_different_rewards(mdp, epsilon=10 ** (-3)):  # You can add more input parameters as needed
