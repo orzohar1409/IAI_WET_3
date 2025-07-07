@@ -136,20 +136,42 @@ def get_policy(mdp, U):
 def policy_evaluation(mdp, policy):
     """
     Given the MDP and a fixed policy, compute the utility U(s) for each state s
-    using iterative policy evaluation.
+    using linear algebra: U = (I - gamma * P)^-1 * R
     """
     mdp_wrapper = MDPWrapper(mdp)
-    u_new = [[0.0 for _ in range(mdp_wrapper.num_col)] for _ in range(mdp_wrapper.num_row)]
-    for state in mdp_wrapper.get_all_states():
-        if mdp_wrapper.is_terminal(state):
-            u_new[state.i][state.j] = state.get_reward()
-            continue
-        if mdp_wrapper.is_wall(state):
-            u_new[state.i][state.j] = 0.0
-            continue
-        u_new[state.i][state.j] = state.get_reward() + mdp_wrapper.gamma * mdp_wrapper.get_expected_utility(state, policy[state.i][state.j])
+    states = list(mdp_wrapper.get_all_states())
+    state_to_index = {s: idx for idx, s in enumerate(states)}
+    n = len(states)
 
-    return u_new
+    P = np.zeros((n, n))
+    R = np.zeros((n, 1))
+    gamma = mdp_wrapper.gamma
+
+    for s in states:
+        idx = state_to_index[s]
+        R[idx][0] = s.get_reward()
+
+        if mdp_wrapper.is_wall(s) or mdp_wrapper.is_terminal(s):
+            continue
+
+        a = policy[s.i][s.j]
+        transition_probs = mdp.transition_function[a]
+
+        for dir_name, prob in zip(mdp.actions.keys(), transition_probs):
+            ni, nj = mdp.step((s.i, s.j), dir_name)
+            next_state = mdp_wrapper.board[ni][nj]
+            next_idx = state_to_index[next_state]
+            P[idx][next_idx] += prob
+
+    I = np.eye(n)
+    solution = np.linalg.solve(I - gamma * P, R)
+
+    # Convert back to 2D grid
+    U_grid = [[0.0 for _ in range(mdp_wrapper.num_col)] for _ in range(mdp_wrapper.num_row)]
+    for s, idx in state_to_index.items():
+        U_grid[s.i][s.j] = round(solution[idx, 0], 6)
+
+    return U_grid
 
 
 def policy_iteration(mdp, policy_init):
@@ -209,42 +231,67 @@ def get_all_policies(mdp, U, epsilon=10 ** (-3)):  # You can add more input para
     mdp_wrapper = MDPWrapper(mdp)
     mdp_wrapper.set_utility(U)
 
-    policies_per_state = {state: [] for state in mdp_wrapper.get_all_states() if not mdp_wrapper.is_wall(state) and not mdp_wrapper.is_terminal(state)}
+    policies_per_state = [[[] for _ in range(mdp.num_col)] for _ in range(mdp.num_row)]
     for curr_state in mdp_wrapper.get_all_states():
         if mdp_wrapper.is_wall(curr_state) or mdp_wrapper.is_terminal(curr_state):
             continue
         for action in mdp.actions:
-            expected_util = mdp_wrapper.get_expected_utility(curr_state, action)
-            new_value = curr_state.get_reward() + mdp_wrapper.gamma * expected_util
-            if abs(new_value - curr_state.utility) < epsilon:
-                policies_per_state[curr_state].append(action)
+            expected_util = curr_state.get_reward() + mdp_wrapper.gamma * mdp_wrapper.get_expected_utility(curr_state, action)
+            if abs(expected_util - curr_state.utility) < epsilon:
+                policies_per_state[curr_state.i][curr_state.j].append(action)
 
     num_policies = 1
-    for state, actions in policies_per_state.items():
-        num_policies *= len(actions) if actions else 1
+    for state in mdp_wrapper.get_all_states():
+        if mdp_wrapper.is_wall(state) or mdp_wrapper.is_terminal(state):
+            continue
+        num_policies *= len(policies_per_state[state.i][state.j])
 
 
     policy = [["" for _ in range(mdp.num_col)] for _ in range(mdp.num_row)]
-    for state, actions in policies_per_state.items():
+    for state in mdp_wrapper.get_all_states():
         if mdp_wrapper.is_wall(state):
             policy[state.i][state.j] = "WALL"
             continue
         if mdp_wrapper.is_terminal(state):
             policy[state.i][state.j] = str(state.get_reward())
             continue
-        policy[state.i][state.j] = ' '.join(convert_action(a) for a in actions)
+        policy[state.i][state.j] = ' '.join(convert_action(a) for a in policies_per_state[state.i][state.j])
     mdp.print_policy(policy)
     return num_policies
 
 
 
-def get_policy_for_different_rewards(mdp, epsilon=10 ** (-3)):  # You can add more input parameters as needed
-    # TODO:
-    # Given the mdp
-    # print / displas the optimal policy as a function of r
-    # (reward values for any non-finite state)
-    #
+def get_policy_for_different_rewards(mdp, epsilon=1e-3):
+    """
+    For each reward value r in [-5.00, 5.00] with step 0.01, set it as the reward
+    for all non-terminal, non-wall states and compute the optimal policy.
+    Whenever the policy changes from the previous one, display it and the reward range.
+    """
+    prev_policy = None
+    r_values = np.round(np.arange(-5.00, 5.01, 0.01), 2)
+    change_points = [-5.00]  # Start with the first change point
+    mdp_wrapper = MDPWrapper(mdp)
+    for r in r_values:
+        # Set reward r to all non-terminal, non-wall states
+        for state in mdp_wrapper.get_all_states():
+            if mdp_wrapper.is_wall(state) or mdp_wrapper.is_terminal(state):
+                continue
+            state.reward = r
 
-    # ====== YOUR CODE: ======
-    raise NotImplementedError
-    # ========================
+
+        U_init = [[0.0 for _ in range(mdp.num_col)] for _ in range(mdp.num_row)]
+        mdp_wrapper.set_utility(U_init)
+        # Compute the optimal policy for the current reward
+        init_policy = [['UP', 'UP', 'UP', None],
+              ['UP', None, 'UP', None],
+              ['UP', 'UP', 'UP', 'UP']]
+        policy = policy_iteration(mdp, policy_init=init_policy)
+        # Compare with previous policy
+        if prev_policy is None or policy != prev_policy:
+            change_points.append(r)
+            print(f"{change_points[-2]}<R(s)<{change_points[-1]}")
+            mdp.print_policy(policy)
+            prev_policy = policy
+
+    return change_points
+
