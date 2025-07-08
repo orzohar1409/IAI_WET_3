@@ -255,7 +255,8 @@ def get_all_policies(mdp, U, epsilon=10 ** (-3)):  # You can add more input para
             continue
         num_policies *= len(policies_per_state[state.i][state.j])
 
-
+    if num_policies == 0:
+        return 0
     policy = [["" for _ in range(mdp.num_col)] for _ in range(mdp.num_row)]
     for state in mdp_wrapper.get_all_states():
         if mdp_wrapper.is_wall(state):
