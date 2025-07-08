@@ -37,6 +37,7 @@ class MDPWrapper:
             State(i, j, mdp.board[i][j]) for j in range(mdp.num_col)
         ] for i in range(mdp.num_row)]
 
+
     def is_terminal(self, state):
         return state.get_quards() in self.terminal_states
 
@@ -82,30 +83,38 @@ def value_iteration(mdp, U_init, epsilon=10 ** (-3)):
     Given the MDP, an initial utility matrix U_init, and epsilon (upper bound on error from optimal utility),
     run the value iteration algorithm and return the utility matrix U at convergence.
     """
-    U = deepcopy(U_init)
     mdp_wrapper = MDPWrapper(mdp)
-    mdp_wrapper.set_utility(U)
-    delta = float('inf')
+    mdp_wrapper.set_utility(U_init)
+    gamma = mdp_wrapper.gamma
 
-    # Iterate until convergence threshold reached
-    while delta >= (epsilon * (1 - mdp_wrapper.gamma)) / mdp_wrapper.gamma:
+    while True:
+        U_prev = mdp_wrapper.get_utility()
+        new_U = deepcopy(U_prev)
         delta = 0
-        new_U = mdp_wrapper.get_utility()
+
         for state in mdp_wrapper.get_all_states():
+            i, j = state.i, state.j
+
             if mdp_wrapper.is_wall(state):
                 continue
             if mdp_wrapper.is_terminal(state):
-                new_U[state.i][state.j] = state.get_reward()
+                new_U[i][j] = state.get_reward()
+                delta = max(delta, abs(new_U[i][j] - U_prev[i][j]))
                 continue
 
             max_util = float('-inf')
             for action in mdp_wrapper.actions:
-                max_util = max(max_util, mdp_wrapper.get_expected_utility(state, action))
+                expected_util = mdp_wrapper.get_expected_utility(state, action)
+                max_util = max(max_util, expected_util)
 
-            new_value = state.get_reward() + mdp.gamma * max_util
-            new_U[state.i][state.j] = new_value
-            delta = max(delta, abs(new_value - state.utility))
+            new_value = state.get_reward() + gamma * max_util
+            delta = max(delta, abs(new_value - U_prev[i][j]))
+            new_U[i][j] = new_value
+
         mdp_wrapper.set_utility(new_U)
+
+        if delta < (epsilon * (1 - gamma)) / gamma:
+            break
 
     return mdp_wrapper.get_utility()
 
