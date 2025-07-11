@@ -315,11 +315,7 @@ def get_policy_for_different_rewards(mdp, epsilon=1e-3):
                 if mdp.board[i][j] != 'WALL' and (i, j) not in mdp.terminal_states:
                     mdp.board[i][j] = r
         mdp_wrapper = MDPWrapper(mdp)
-        init_policy = [
-            ['UP' if not mdp_wrapper.is_wall(State(i, j, 0)) and (i, j) not in mdp.terminal_states else None
-             for j in range(mdp.num_col)] for i in range(mdp.num_row)]
-
-        init_U = policy_evaluation(mdp, init_policy)
+        init_U = [[0 for _ in range(mdp.num_col)] for _ in range(mdp.num_row)]
         improved_U = value_iteration(mdp, init_U, epsilon=epsilon)
         mdp_wrapper.set_utility(improved_U)
         policies = get_all_policies_per_state(mdp_wrapper, epsilon)
