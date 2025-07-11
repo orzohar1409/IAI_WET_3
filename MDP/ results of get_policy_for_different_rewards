@@ -1,0 +1,82 @@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@ get_policy_for_different_rewards @@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+-5.00 ≤ R(s) ≤ -1.46
+Policy:
+| RIGHT | RIGHT | RIGHT | +1    |
+| UP    | WALL  | UP    | -1    |
+| RIGHT | RIGHT | RIGHT | UP    |
+
+
+-1.46 < R(s) ≤ -1.3
+Policy:
+| RIGHT | RIGHT | RIGHT | +1    |
+| UP    | WALL  | UP    | -1    |
+| RIGHT | RIGHT | UP    | UP    |
+
+
+-1.3 < R(s) ≤ -0.6
+Policy:
+| RIGHT | RIGHT | RIGHT | +1    |
+| UP    | WALL  | UP    | -1    |
+| UP    | RIGHT | UP    | UP    |
+
+
+-0.6 < R(s) ≤ -0.37
+Policy:
+| RIGHT | RIGHT | RIGHT | +1    |
+| UP    | WALL  | UP    | -1    |
+| UP    | RIGHT | UP    | LEFT  |
+
+
+-0.37 < R(s) ≤ -0.05
+Policy:
+| RIGHT | RIGHT | RIGHT | +1    |
+| UP    | WALL  | UP    | -1    |
+| UP    | LEFT  | UP    | LEFT  |
+
+
+-0.05 < R(s) ≤ -0.04
+Policy:
+| RIGHT | RIGHT | RIGHT | +1    |
+| UP    | WALL  | UP    | -1    |
+| UP    | LEFT  | UP    | DOWN  |
+
+
+-0.04 < R(s) ≤ 0.01
+Policy:
+| RIGHT | RIGHT | RIGHT | +1    |
+| UP    | WALL  | LEFT  | -1    |
+| UP    | LEFT  | UP    | DOWN  |
+
+
+0.01 < R(s) ≤ 0.1
+Policy:
+| UP    | UP    | UP    | +1    |
+| UP    | WALL  | LEFT  | -1    |
+| UP    | UP    | UP    | DOWN  |
+
+
+0.1 < R(s) ≤ 0.11
+Policy:
+| UP    | UP    | LEFT  | +1    |
+| UP    | WALL  | LEFT  | -1    |
+| UP    | UP    | UP    | DOWN  |
+
+
+0.11 < R(s) ≤ 0.17
+Policy:
+| RIGHT | RIGHT | LEFT  | +1    |
+| RIGHT | WALL  | LEFT  | -1    |
+| RIGHT | RIGHT | RIGHT | DOWN  |
+
+
+0.17 < R(s) ≤ 5.00
+Policy:
+| RIGHT | RIGHT | LEFT  | +1    |
+| RIGHT | WALL  | LEFT  | -1    |
+| RIGHT | RIGHT | RIGHT | DOWN  |
+
+
+[[['RIGHT', 'RIGHT', 'RIGHT', None], ['UP', None, 'RIGHT', None], ['RIGHT', 'RIGHT', 'RIGHT', 'UP']], [['RIGHT', 'RIGHT', 'RIGHT', None], ['UP', None, 'UP', None], ['RIGHT', 'RIGHT', 'RIGHT', 'UP']], [['RIGHT', 'RIGHT', 'RIGHT', None], ['UP', None, 'UP', None], ['RIGHT', 'RIGHT', 'UP', 'UP']], [['RIGHT', 'RIGHT', 'RIGHT', None], ['UP', None, 'UP', None], ['UP', 'RIGHT', 'UP', 'UP']], [['RIGHT', 'RIGHT', 'RIGHT', None], ['UP', None, 'UP', None], ['UP', 'RIGHT', 'UP', 'LEFT']], [['RIGHT', 'RIGHT', 'RIGHT', None], ['UP', None, 'UP', None], ['UP', 'LEFT', 'UP', 'LEFT']], [['RIGHT', 'RIGHT', 'RIGHT', None], ['UP', None, 'UP', None], ['UP', 'LEFT', 'UP', 'DOWN']], [['RIGHT', 'RIGHT', 'RIGHT', None], ['UP', None, 'LEFT', None], ['UP', 'LEFT', 'UP', 'DOWN']], [['UP', 'UP', 'UP', None], ['UP', None, 'LEFT', None], ['UP', 'UP', 'UP', 'DOWN']], [['UP', 'UP', 'LEFT', None], ['UP', None, 'LEFT', None], ['UP', 'UP', 'UP', 'DOWN']], [['RIGHT', 'RIGHT', 'LEFT', None], ['RIGHT', None, 'LEFT', None], ['RIGHT', 'RIGHT', 'RIGHT', 'DOWN']]]
+Done!
