@@ -16,14 +16,19 @@ class State:
 
     def set_utility(self, utility):
         self.utility = utility
+
     def get_quards(self):
         return self.i, self.j
+
     def __eq__(self, other):
         if not isinstance(other, State):
             return False
         return self.i == other.i and self.j == other.j
+
     def __hash__(self):
         return hash((self.i, self.j))
+
+
 class MDPWrapper:
     def __init__(self, mdp):
         self.mdp = mdp
@@ -37,16 +42,17 @@ class MDPWrapper:
             State(i, j, mdp.board[i][j]) for j in range(mdp.num_col)
         ] for i in range(mdp.num_row)]
 
-
     def is_terminal(self, state):
         return state.get_quards() in self.terminal_states
 
     def is_wall(self, state):
         i, j = state.get_quards()
         return self.board[i][j].reward == 'WALL'
+
     def in_bounds(self, state):
         i, j = state.get_quards()
         return 0 <= i < self.num_row and 0 <= j < self.num_col and not self.is_wall(state)
+
     def get_all_states(self):
         for i in range(self.num_row):
             for j in range(self.num_col):
@@ -56,6 +62,7 @@ class MDPWrapper:
         for i in range(self.num_row):
             for j in range(self.num_col):
                 self.board[i][j].set_utility(utility[i][j])
+
     def get_utility(self):
         return [[self.board[i][j].utility for j in range(self.num_col)] for i in range(self.num_row)]
 
@@ -218,6 +225,35 @@ def policy_iteration(mdp, policy_init):
 """For this functions, you can import what ever you want """
 
 
+def get_all_policies_per_state(mdp_wrapper, epsilon):
+    policies_per_state = [[[] for _ in range(mdp_wrapper.num_col)] for _ in range(mdp_wrapper.num_row)]
+    for curr_state in mdp_wrapper.get_all_states():
+        if mdp_wrapper.is_wall(curr_state) or mdp_wrapper.is_terminal(curr_state):
+            continue
+        for action in mdp_wrapper.actions:
+            expected_util = curr_state.get_reward() + mdp_wrapper.gamma * mdp_wrapper.get_expected_utility(
+                curr_state,
+                action)
+            if abs(expected_util - curr_state.utility) < epsilon:
+                policies_per_state[curr_state.i][curr_state.j].append(action)
+    return policies_per_state
+
+
+def compare_policies_per_state(mdp_wrapper, policies_per_state1, policies_per_state2):
+    for i in range(mdp_wrapper.num_row):
+        for j in range(mdp_wrapper.num_col):
+            if mdp_wrapper.is_wall(mdp_wrapper.board[i][j]) or mdp_wrapper.is_terminal(mdp_wrapper.board[i][j]):
+                continue
+            actions1 = policies_per_state1[i][j]
+            actions2 = policies_per_state2[i][j]
+            if len(actions1) != len(actions2):
+                return False
+            for action in actions1:
+                if action not in actions2:
+                    return False
+    return True
+
+
 def get_all_policies(mdp, U, epsilon=10 ** (-3)):  # You can add more input parameters as needed
     # TODO:
     # Given the mdp, and the utility value U (which satisfies the Belman equation)
@@ -240,14 +276,7 @@ def get_all_policies(mdp, U, epsilon=10 ** (-3)):  # You can add more input para
     mdp_wrapper = MDPWrapper(mdp)
     mdp_wrapper.set_utility(U)
 
-    policies_per_state = [[[] for _ in range(mdp.num_col)] for _ in range(mdp.num_row)]
-    for curr_state in mdp_wrapper.get_all_states():
-        if mdp_wrapper.is_wall(curr_state) or mdp_wrapper.is_terminal(curr_state):
-            continue
-        for action in mdp.actions:
-            expected_util = curr_state.get_reward() + mdp_wrapper.gamma * mdp_wrapper.get_expected_utility(curr_state, action)
-            if abs(expected_util - curr_state.utility) < epsilon:
-                policies_per_state[curr_state.i][curr_state.j].append(action)
+    policies_per_state = get_all_policies_per_state(mdp_wrapper, epsilon)
 
     num_policies = 1
     for state in mdp_wrapper.get_all_states():
@@ -272,12 +301,12 @@ def get_all_policies(mdp, U, epsilon=10 ** (-3)):  # You can add more input para
 
 def get_policy_for_different_rewards(mdp, epsilon=1e-3):
     r_values = np.round(np.arange(-5.00, 5.01, 0.01), 2)
-    prev_policy = None
     change_points = []
     change_policies = []
 
     seen_policies = set()  # To track unique policies
-    unique_policies = []   # To return all valid ones
+    unique_policies = []  # To return all valid ones
+    prev_policies = None
 
     for r in r_values:
         # Set the reward directly in the mdp board
@@ -285,25 +314,18 @@ def get_policy_for_different_rewards(mdp, epsilon=1e-3):
             for j in range(mdp.num_col):
                 if mdp.board[i][j] != 'WALL' and (i, j) not in mdp.terminal_states:
                     mdp.board[i][j] = r
-
-        # Create wrapper and initial policy
         mdp_wrapper = MDPWrapper(mdp)
-        init_policy = [['UP' if not mdp_wrapper.is_wall(State(i, j, 0)) and (i, j) not in mdp.terminal_states else None
-                        for j in range(mdp.num_col)] for i in range(mdp.num_row)]
+        init_policy = [
+            ['UP' if not mdp_wrapper.is_wall(State(i, j, 0)) and (i, j) not in mdp.terminal_states else None
+             for j in range(mdp.num_col)] for i in range(mdp.num_row)]
 
-        policy = policy_iteration(mdp, policy_init=init_policy)
-
-        # Serialize policy for uniqueness
-        policy_tuple = tuple(tuple(row) for row in policy)
-        if policy_tuple not in seen_policies:
-            seen_policies.add(policy_tuple)
-            unique_policies.append(policy)
-
-        if prev_policy is not None and policy != prev_policy:
+        init_U = policy_evaluation(mdp, init_policy)
+        improved_U = value_iteration(mdp, init_U, epsilon=epsilon)
+        mdp_wrapper.set_utility(improved_U)
+        policies = get_all_policies_per_state(mdp_wrapper, epsilon)
+        if prev_policies is not None and compare_policies_per_state(mdp_wrapper, prev_policies, policies):
             change_points.append(r)
-            change_policies.append(policy)
-
-        prev_policy = policy
+            change_policies.append(prev_policies)
 
     # Print all change points and policies
     for idx in range(len(change_policies)):
@@ -322,4 +344,3 @@ def get_policy_for_different_rewards(mdp, epsilon=1e-3):
         print()
 
     return unique_policies
-
