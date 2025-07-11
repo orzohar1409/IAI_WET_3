@@ -299,9 +299,9 @@ def get_policy_for_different_rewards(mdp, epsilon=1e-3):
             seen_policies.add(policy_tuple)
             unique_policies.append(policy)
 
-            if prev_policy is not None:
-                change_points.append(r)
-                change_policies.append(policy)
+        if prev_policy is not None and policy != prev_policy:
+            change_points.append(r)
+            change_policies.append(policy)
 
         prev_policy = policy
 
