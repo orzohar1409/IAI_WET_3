@@ -246,6 +246,20 @@ def get_all_policies_per_state(mdp_wrapper, epsilon):
                 policies_per_state[curr_state.i][curr_state.j] += convert_action(action)
     return policies_per_state
 
+def get_all_policies_per_state_return_value(mdp_wrapper, epsilon):
+    policies_per_state = [[[] for _ in range(mdp_wrapper.num_col)] for _ in range(mdp_wrapper.num_row)]
+    for curr_state in mdp_wrapper.get_all_states():
+        if mdp_wrapper.is_wall(curr_state) or mdp_wrapper.is_terminal(curr_state):
+            continue
+        for action in mdp_wrapper.actions:
+            expected_util = curr_state.get_reward() + mdp_wrapper.gamma * mdp_wrapper.get_expected_utility(
+                curr_state,
+                action)
+            if abs(expected_util - curr_state.utility) < epsilon:
+                policies_per_state[curr_state.i][curr_state.j] += convert_action(action)
+    return policies_per_state
+
+
 
 def compare_policies_per_state(mdp_wrapper, policies_per_state1, policies_per_state2):
     for i in range(mdp_wrapper.num_row):
